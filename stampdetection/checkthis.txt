@@ -1,0 +1,35 @@
+install ultralytics first, these were my configs for predicting on the test images., save_crop isnt needed i just used it to crop the stamps for the data synth im doing.
+
+from ultralytics import YOLO
+bestone = YOLO('/content/drive/MyDrive/StampDetection/runs/v6/weights/best.pt')
+
+preds = bestone.predict(
+    source='/content/drive/MyDrive/StampDetection/allstamps',
+    conf=0.5,
+    save=True,
+    iou=0.45,
+    imgsz=960,
+    project='/content/drive/MyDrive/StampDetection/runs',
+    name='croppedstamps',
+    save_crop =True
+    
+)
+
+
+
+from ultralytics import YOLO
+bestone = YOLO('/content/drive/MyDrive/StampDetection/runs/v6/weights/best.pt')
+
+preds = bestone.predict(
+    source='/content/drive/MyDrive/StampDetection/allstamps',
+    conf=0.5,
+    save=True,
+    iou=0.45,
+    imgsz=960,
+    project='/content/drive/MyDrive/StampDetection/runs',
+    name='croppedstamps',
+    save_crop =True
+    
+)
+
+

@@ -1,0 +1,7 @@
+path: /home/ps-ai/Desktop/manar/finaldataset
+
+train: images/train
+val: images/val
+
+names:
+  0: stamp
