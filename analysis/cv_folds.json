@@ -1,0 +1,97 @@
+{
+  "k": 5,
+  "seed": 42,
+  "images_dir": "/home/manaralhajyousef/Desktop/stamp-detetction-python/yolofiles/images",
+  "labels_dir": "/home/manaralhajyousef/Desktop/stamp-detetction-python/yolofiles/labels",
+  "total_images": 189,
+  "total_depositors": 57,
+  "folds": [
+    {
+      "fold": 0,
+      "val_depositors": [
+        "TNBCPS20004"
+      ],
+      "val_image_count": 44
+    },
+    {
+      "fold": 1,
+      "val_depositors": [
+        "CAABPS20809",
+        "CAABPS20821",
+        "JONBPS20845",
+        "MANUALHSBC001",
+        "PALSPS20454",
+        "PALSPS20457",
+        "PALSPS20467",
+        "PALSPS20484",
+        "PINVPS20898",
+        "PINVPS20899",
+        "TNBCPS20001",
+        "TNBCPS20003",
+        "TNBCPS20007",
+        "TNBCPS20025"
+      ],
+      "val_image_count": 37
+    },
+    {
+      "fold": 2,
+      "val_depositors": [
+        "BJORPS20823",
+        "JONBPS20843",
+        "JONBPS20846",
+        "JONBPS20848",
+        "PALSPS20447",
+        "PALSPS20459",
+        "PALSPS20483",
+        "PINVPS20897",
+        "PINVPS20901",
+        "TNBCPS20009",
+        "TNBCPS20014",
+        "TNBCPS20017",
+        "TNBCPS20021",
+        "TNBCPS20022"
+      ],
+      "val_image_count": 36
+    },
+    {
+      "fold": 3,
+      "val_depositors": [
+        "BJORPS20827",
+        "CAABPS20800",
+        "JONBPS20847",
+        "MANUALALSALAM001",
+        "MANUALKHALEEJI001",
+        "PALSPS20449",
+        "PALSPS20450",
+        "PALSPS20461",
+        "PALSPS20466",
+        "PALSPS20469",
+        "PALSPS20470",
+        "PALSPS20481",
+        "TNBCPS20002",
+        "TNBCPS20006"
+      ],
+      "val_image_count": 36
+    },
+    {
+      "fold": 4,
+      "val_depositors": [
+        "BJORPS20825",
+        "JONBPS20849",
+        "PALSPS20458",
+        "PALSPS20471",
+        "PALSPS20472",
+        "PINVPS20412",
+        "PINVPS20902",
+        "TNBCPS20005",
+        "TNBCPS20008",
+        "TNBCPS20011",
+        "TNBCPS20012",
+        "TNBCPS20015",
+        "TNBCPS20018",
+        "TNBCPS20027"
+      ],
+      "val_image_count": 36
+    }
+  ]
+}
