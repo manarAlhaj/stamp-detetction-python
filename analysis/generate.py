@@ -3,6 +3,7 @@ import argparse
 import collections
 import contextlib
 import json
+import multiprocessing as mp
 import os
 import random
 import re
@@ -12,6 +13,13 @@ import numpy as np
 from PIL import Image
 
 import generate_fake_stamps as fake
+
+# must happen before any cv2 call, in the parent as well as workers: OpenCV
+# otherwise spins up its own native thread pool, and forking a
+# multi-threaded process (multiprocessing.Pool's default on Linux) can
+# deadlock a child that inherits a lock held by one of those threads at the
+# moment of fork.
+cv2.setNumThreads(1)
 
 PAGES_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/data27jul/train"
 CROPS_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/stamp_crops_from_labels"
@@ -125,8 +133,18 @@ def load_real_templates_by_depositor(crops_dir, excluded_depositors=frozenset())
     return dict(by_dep)
 
 
-def ensure_procedural_pool(pool_dir, size, seed=0):
-   
+def _make_one_template(task):
+    idx, seed, pool_dir = task
+    rng = random.Random(seed)
+    img = None
+    while img is None:          # make_template occasionally returns None
+        img = fake.make_template(rng)   # (near-empty design); just retry
+    Image.fromarray(img).save(f"{pool_dir}/proc_{idx:05d}.png")
+    return idx
+
+
+def ensure_procedural_pool(pool_dir, size, seed=0, workers=1):
+
     os.makedirs(pool_dir, exist_ok=True)
     existing_files = sorted(f for f in os.listdir(pool_dir) if f.endswith(".png"))
     existing = len(existing_files)
@@ -136,18 +154,21 @@ def ensure_procedural_pool(pool_dir, size, seed=0):
 
     missing = size - existing
     print(f"procedural pool: {existing} cached, topping up {missing} more into "
-          f"{pool_dir}/ (~{missing*0.062:.0f}s at ~62ms/design)...")
-    rng = random.Random(seed)
-    made = 0
-    idx = existing          # continue numbering after whatever is already there
-    while made < missing:
-        img = fake.make_template(rng)
-        if img is None:
-            continue
-        from PIL import Image as _Image
-        _Image.fromarray(img).save(f"{pool_dir}/proc_{idx:05d}.png")
-        idx += 1
-        made += 1
+          f"{pool_dir}/ (~{missing*0.062/max(workers,1):.0f}s at ~62ms/design, "
+          f"{workers} worker(s))...")
+
+    # continue numbering after whatever is already there; each task gets its
+    # own distinct seed so designs don't repeat across tasks/workers
+    tasks = [(existing + k, seed * 1_000_003 + existing + k, pool_dir)
+             for k in range(missing)]
+
+    if workers <= 1:
+        for _ in map(_make_one_template, tasks):
+            pass
+    else:
+        with mp.Pool(workers) as pool:
+            for _ in pool.imap_unordered(_make_one_template, tasks, chunksize=4):
+                pass
 
 
 def load_procedural_pool(pool_dir):
@@ -322,14 +343,82 @@ def degrade_page(img_f32, cfg, rng):
 
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# one page's worth of work, factored out so it can run under
+# multiprocessing.Pool - see _init_worker/_render_page below for how the
+# shared read-only inputs (backgrounds/pool/crops) get to each worker.
+# ---------------------------------------------------------------------------
+
+_WORKER_STATE = {}
+
+
+def _init_worker(cfg, real_by_dep, real_deps, proc_pool, backgrounds, out_dir,
+                  save_stamps):
+    _WORKER_STATE.update(
+        cfg=cfg, real_by_dep=real_by_dep, real_deps=real_deps,
+        proc_pool=proc_pool, backgrounds=backgrounds, out_dir=out_dir,
+        save_stamps=save_stamps,
+    )
+
+
+def _render_page(task):
+    i, page_seed = task
+    st = _WORKER_STATE
+    cfg, real_by_dep, real_deps = st["cfg"], st["real_by_dep"], st["real_deps"]
+    proc_pool, backgrounds = st["proc_pool"], st["backgrounds"]
+    out_dir, save_stamps = st["out_dir"], st["save_stamps"]
+
+    rng = np.random.default_rng(page_seed)
+    name = f"synth_{i:06d}"
+
+    bg = backgrounds[rng.integers(len(backgrounds))].astype(np.float32).copy()
+    H, W = bg.shape
+    occupancy = np.zeros((H, W), np.uint8)
+
+    want = int(rng.integers(cfg["stamps_per_page"][0], cfg["stamps_per_page"][1] + 1))
+    boxes = []
+    source_counts = collections.Counter()
+    manifest_lines = []
+    for _ in range(want * 3):
+        if len(boxes) >= want:
+            break
+        alpha, src, src_id = sample_template(rng, cfg, real_by_dep, real_deps, proc_pool)
+        a = degrade_alpha(alpha.copy(), cfg, rng)
+        result = place_stamp(bg, occupancy, a, cfg, rng, boxes)
+        if result is None:
+            continue
+        box, rot, ink = result
+        boxes.append(box)
+        source_counts[src] += 1
+
+        if save_stamps:
+            crop_file = f"{name}_stamp_{len(boxes)-1:02d}_{src}.png"
+            preview = fake.PAPER_TONE * (1.0 - rot + rot * ink)
+            Image.fromarray(np.clip(preview, 0, 255).astype(np.uint8)) \
+                .save(f"{out_dir}/stamps_used/{crop_file}")
+            x0, y0, x1, y1 = box
+            manifest_lines.append(f"{name},{len(boxes)-1},{src},{src_id},{ink:.3f},"
+                                   f"{x0},{y0},{x1},{y1},{crop_file}\n")
+
+    shortfall = max(want - len(boxes), 0)
+
+    img = degrade_page(bg, cfg, rng)
+    cv2.imwrite(f"{out_dir}/images/{name}.png", img)
+    with open(f"{out_dir}/labels/{name}.txt", "w") as f:
+        for x0, y0, x1, y1 in boxes:
+            f.write(f"0 {(x0+x1)/2/W:.6f} {(y0+y1)/2/H:.6f} "
+                    f"{(x1-x0)/W:.6f} {(y1-y0)/H:.6f}\n")
+
+    return len(boxes), source_counts, shortfall, manifest_lines
+
+
 def generate(n, out_dir, cfg, seed=0, save_stamps=True, split_result_path=SPLIT_RESULT_PATH,
-             recovered_dir=RECOVERED_DIR):
-    rng = np.random.default_rng(seed)
+             recovered_dir=RECOVERED_DIR, workers=1):
 
     val_depositors = load_val_depositors(split_result_path)
     print(f"excluding {len(val_depositors)} val depositors from synthesis")
 
-    ensure_procedural_pool(PROC_POOL_DIR, cfg["pool_size"], seed)
+    ensure_procedural_pool(PROC_POOL_DIR, cfg["pool_size"], seed, workers=workers)
     proc_pool = load_procedural_pool(PROC_POOL_DIR)
     real_by_dep = load_real_templates_by_depositor(CROPS_DIR, excluded_depositors=val_depositors)
     real_deps = sorted(real_by_dep)
@@ -339,70 +428,55 @@ def generate(n, out_dir, cfg, seed=0, save_stamps=True, split_result_path=SPLIT_
     n_real_crops = sum(len(v) for v in real_by_dep.values())
     print(f"procedural pool: {len(proc_pool)}   "
           f"real: {n_real_crops} crops / {len(real_deps)} depositors   "
-          f"backgrounds: {len(backgrounds)}")
+          f"backgrounds: {len(backgrounds)}   workers: {workers}")
 
     os.makedirs(f"{out_dir}/images", exist_ok=True)
     os.makedirs(f"{out_dir}/labels", exist_ok=True)
+    if save_stamps:
+        os.makedirs(f"{out_dir}/stamps_used", exist_ok=True)
+
+    # one independent, decorrelated RNG stream per page instead of a single
+    # shared sequential one - required once pages can run out of order
+    # across worker processes
+    tasks = list(enumerate(np.random.SeedSequence(seed).spawn(n)))
 
     total_boxes = 0
     source_counts = collections.Counter()
     shortfall_pages = 0
     shortfall_total = 0
+    manifest_lines = []
 
-    with contextlib.ExitStack() as stack:
-        manifest = None
-        if save_stamps:
-            os.makedirs(f"{out_dir}/stamps_used", exist_ok=True)
-            manifest = stack.enter_context(
-                open(f"{out_dir}/stamps_used_manifest.csv", "w"))
-            manifest.write("page,stamp_index,source,source_id,ink,x0,y0,x1,y1,crop_file\n")
-
-        for i in range(n):
-            bg = backgrounds[rng.integers(len(backgrounds))].astype(np.float32).copy()
-            H, W = bg.shape
-            occupancy = np.zeros((H, W), np.uint8)
-            name = f"synth_{i:06d}"
-
-            want = int(rng.integers(cfg["stamps_per_page"][0],
-                                    cfg["stamps_per_page"][1] + 1))
-            boxes = []
-            for _ in range(want * 3):
-                if len(boxes) >= want:
-                    break
-                alpha, src, src_id = sample_template(rng, cfg, real_by_dep, real_deps, proc_pool)
-                a = degrade_alpha(alpha.copy(), cfg, rng)
-                result = place_stamp(bg, occupancy, a, cfg, rng, boxes)
-                if result is None:
-                    continue
-                box, rot, ink = result
-                boxes.append(box)
-                source_counts[src] += 1
-
-                if save_stamps:
-
-                    crop_file = f"{name}_stamp_{len(boxes)-1:02d}_{src}.png"
-                    preview = fake.PAPER_TONE * (1.0 - rot + rot * ink)
-                    Image.fromarray(np.clip(preview, 0, 255).astype(np.uint8)) \
-                        .save(f"{out_dir}/stamps_used/{crop_file}")
-                    x0, y0, x1, y1 = box
-                    manifest.write(f"{name},{len(boxes)-1},{src},{src_id},{ink:.3f},"
-                                  f"{x0},{y0},{x1},{y1},{crop_file}\n")
-
-            if len(boxes) < want:
+    if workers <= 1:
+        _init_worker(cfg, real_by_dep, real_deps, proc_pool, backgrounds, out_dir, save_stamps)
+        page_results = map(_render_page, tasks)
+        for n_boxes, counts, shortfall, lines in page_results:
+            total_boxes += n_boxes
+            source_counts.update(counts)
+            if shortfall:
                 shortfall_pages += 1
-                shortfall_total += want - len(boxes)
+                shortfall_total += shortfall
+            manifest_lines.extend(lines)
+    else:
+        with mp.Pool(
+            workers, initializer=_init_worker,
+            initargs=(cfg, real_by_dep, real_deps, proc_pool, backgrounds, out_dir,
+                      save_stamps),
+        ) as pool:
+            for n_boxes, counts, shortfall, lines in pool.imap_unordered(
+                    _render_page, tasks, chunksize=8):
+                total_boxes += n_boxes
+                source_counts.update(counts)
+                if shortfall:
+                    shortfall_pages += 1
+                    shortfall_total += shortfall
+                manifest_lines.extend(lines)
 
-            img = degrade_page(bg, cfg, rng)
-            cv2.imwrite(f"{out_dir}/images/{name}.png", img)
-            with open(f"{out_dir}/labels/{name}.txt", "w") as f:
-                for x0, y0, x1, y1 in boxes:
-                    f.write(f"0 {(x0+x1)/2/W:.6f} {(y0+y1)/2/H:.6f} "
-                            f"{(x1-x0)/W:.6f} {(y1-y0)/H:.6f}\n")
-            total_boxes += len(boxes)
-
-        if save_stamps:
-            print(f"saved {total_boxes} used-stamp crops to {out_dir}/stamps_used/  "
-                  f"(manifest: {out_dir}/stamps_used_manifest.csv)")
+    if save_stamps:
+        with open(f"{out_dir}/stamps_used_manifest.csv", "w") as f:
+            f.write("page,stamp_index,source,source_id,ink,x0,y0,x1,y1,crop_file\n")
+            f.writelines(manifest_lines)
+        print(f"saved {total_boxes} used-stamp crops to {out_dir}/stamps_used/  "
+              f"(manifest: {out_dir}/stamps_used_manifest.csv)")
 
     print(f"\nwrote {n} images, {total_boxes} boxes "
           f"({total_boxes/max(n,1):.1f} stamps/page) to {out_dir}/")
@@ -430,8 +504,12 @@ if __name__ == "__main__":
                     help="dir of inpainted backgrounds from cleanbackgrounds.py "
                          "(must have been built with the same --split-result); "
                          "pass '' to disable")
+    ap.add_argument("--workers", type=int, default=1,
+                    help="worker processes for page rendering; 1 = sequential "
+                         "(default), os.cpu_count() is a reasonable upper bound")
     a = ap.parse_args()
     if a.pool_size:
         CONFIG["pool_size"] = a.pool_size
     generate(a.n, a.out, CONFIG, a.seed, save_stamps=not a.no_save_stamps,
-              split_result_path=a.split_result, recovered_dir=a.recovered_dir or None)
+              split_result_path=a.split_result, recovered_dir=a.recovered_dir or None,
+              workers=a.workers)

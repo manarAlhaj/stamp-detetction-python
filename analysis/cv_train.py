@@ -110,6 +110,7 @@ def run_fold(fold, args):
         generate.generate(
             args.n_synth, str(synth_dir), generate.CONFIG, seed=i,
             save_stamps=False, split_result_path=str(split_result_path),
+            workers=args.gen_workers,
         )
         n_synth_boxes = args.n_synth
 
@@ -173,10 +174,20 @@ def main():
     ap.add_argument("--device", default="0")
     ap.add_argument("--n-synth", type=int, default=600,
                     help="synthetic pages to generate per fold, 0 to disable")
+    ap.add_argument("--gen-workers", type=int, default=1,
+                    help="worker processes for synthetic page generation "
+                         "(analysis/generate.py); 1 = sequential")
+    ap.add_argument("--pool-size", type=int, default=None,
+                    help="override generate.CONFIG['pool_size'] (procedural "
+                         "fake-stamp designs); grows analysis/proc_pool/ on "
+                         "first fold's synthesis call if it's currently smaller")
     ap.add_argument("--only-fold", type=int, default=None,
                     help="run a single fold index (for smoke-testing)")
     ap.add_argument("--out", default=str(RESULTS_JSON))
     args = ap.parse_args()
+
+    if args.pool_size:
+        generate.CONFIG["pool_size"] = args.pool_size
 
     with open(args.folds) as f:
         folds_data = json.load(f)
