@@ -74,7 +74,8 @@ output = {
     "train_depositors": train_depositors,
 }
 
-with open("split_result.json", "w") as f:
+out_path = REPO_ROOT / "analysis" / "split_result.json"
+with open(out_path, "w") as f:
     json.dump(output, f, indent=2)
 
-print(f"saved {len(val_depositors)} val depositors ({val_images} images) to split_result.json")
+print(f"saved {len(val_depositors)} val depositors ({val_images} images) to {out_path}")

@@ -47,10 +47,10 @@ CONFIG = dict(
     rotation_deg=(5, 10),
 
     # --- overlap -------------------------------------------------------
-    overlap_prob=0.0,      
+    overlap_prob=0.2,
     overlap_offset=(0.15, 0.55),
 
-    max_incidental_iou=0.05,   # active now that overlap_prob is low
+    max_incidental_iou=0.3,
 
     # --- ink
     fade_prob=0.55,
