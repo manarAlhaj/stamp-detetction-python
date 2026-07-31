@@ -127,13 +127,13 @@ def run_fold(fold, args):
         project=str(CV_ROOT),
         name=f"fold_{i}_run",
         exist_ok=True,
-        plots=False,
+        plots=True,
         **TRAIN_CFG,
     )
 
     best_weights = CV_ROOT / f"fold_{i}_run" / "weights" / "best.pt"
     val_model = YOLO(str(best_weights))
-    metrics = val_model.val(data=str(data_yaml), split="val", plots=False)
+    metrics = val_model.val(data=str(data_yaml), split="val", plots=True)
 
     return {
         "fold": i,
