@@ -1,15 +1,3 @@
-"""
-Re-run validation on already-trained fold weights, without retraining.
-
-cv_train.py's own run had plots=False, so no val_batch*_labels.jpg /
-val_batch*_pred.jpg / confusion matrix / PR curve got saved. Since each
-fold's best.pt is already on disk, this just re-runs YOLO's val() against
-it with plots=True - inference over the val set only, nothing trains.
-
-Usage:
-    python analysis/cv_eval.py
-    python analysis/cv_eval.py --only-fold 2
-"""
 
 import argparse
 import json
