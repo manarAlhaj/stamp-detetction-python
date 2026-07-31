@@ -3,9 +3,11 @@
 
 import os
 import re
+from pathlib import Path
 
-PAGES_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/data27jul/train"
-CROPS_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/stamp_crops_from_labels"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+PAGES_DIR = str(REPO_ROOT / "data27jul" / "train")
+CROPS_DIR = str(REPO_ROOT / "stamp_crops_from_labels")
 
 
 def page_stem(fname):

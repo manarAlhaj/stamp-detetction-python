@@ -4,9 +4,10 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
-IMAGES_DIR = Path("/home/manaralhajyousef/Desktop/stamp-detetction-python/yolofiles/images")
-LABELS_DIR = Path("/home/manaralhajyousef/Desktop/stamp-detetction-python/yolofiles/labels")
-OUT_PATH = Path("/home/manaralhajyousef/Desktop/stamp-detetction-python/analysis/cv_folds.json")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+IMAGES_DIR = REPO_ROOT / "yolofiles" / "images"
+LABELS_DIR = REPO_ROOT / "yolofiles" / "labels"
+OUT_PATH = REPO_ROOT / "analysis" / "cv_folds.json"
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 

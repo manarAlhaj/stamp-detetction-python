@@ -1,13 +1,15 @@
 import re
+from pathlib import Path
+
 from banksanalysis import scan
 import json
 
 valfrac = 0.1
 excluded = {"TNBCPS20004", "MANUALALSALAM001"}
 
-
-unst_dir = r"/home/manaralhajyousef/Desktop/stamp-detetction-python/images_no_stamps"
-st_dir = r"/home/manaralhajyousef/Desktop/stamp-detetction-python/images_with_stamps"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+unst_dir = str(REPO_ROOT / "images_no_stamps")
+st_dir = str(REPO_ROOT / "images_with_stamps")
 
 stamped = scan(st_dir)
 unstamped = scan(unst_dir)

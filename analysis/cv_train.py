@@ -10,7 +10,7 @@ from ultralytics import YOLO
 
 import generate
 
-REPO = Path("/home/manaralhajyousef/Desktop/stamp-detetction-python")
+REPO = Path(__file__).resolve().parent.parent
 YOLOFILES_IMAGES = REPO / "yolofiles" / "images"
 YOLOFILES_LABELS = REPO / "yolofiles" / "labels"
 FOLDS_JSON = REPO / "analysis" / "cv_folds.json"

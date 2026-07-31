@@ -7,6 +7,7 @@ import multiprocessing as mp
 import os
 import random
 import re
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -21,11 +22,15 @@ import generate_fake_stamps as fake
 # moment of fork.
 cv2.setNumThreads(1)
 
-PAGES_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/data27jul/train"
-CROPS_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/stamp_crops_from_labels"
-PROC_POOL_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/analysis/proc_pool"
-SPLIT_RESULT_PATH = "/home/manaralhajyousef/Desktop/stamp-detetction-python/analysis/split_result.json"
-RECOVERED_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/analysis/recovered_backgrounds"
+# derived from this file's location (analysis/), not hardcoded, so the repo
+# works from wherever it's cloned rather than one specific machine's home dir
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+PAGES_DIR = str(REPO_ROOT / "data27jul" / "train")
+CROPS_DIR = str(REPO_ROOT / "stamp_crops_from_labels")
+PROC_POOL_DIR = str(REPO_ROOT / "analysis" / "proc_pool")
+SPLIT_RESULT_PATH = str(REPO_ROOT / "analysis" / "split_result.json")
+RECOVERED_DIR = str(REPO_ROOT / "analysis" / "recovered_backgrounds")
 
 CONFIG = dict(
 
@@ -492,7 +497,7 @@ def generate(n, out_dir, cfg, seed=0, save_stamps=True, split_result_path=SPLIT_
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--n", type=int, default=24)
-    ap.add_argument("--out", default="/home/manaralhajyousef/Desktop/stamp-detetction-python/synth_data")
+    ap.add_argument("--out", default=str(REPO_ROOT / "synth_data"))
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--pool-size", type=int, default=None,
                     help="override CONFIG['pool_size']")

@@ -2,6 +2,7 @@
 
 import argparse
 import os
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -9,12 +10,14 @@ from PIL import Image
 
 import generate as gen
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
 PAGES_DIR = gen.PAGES_DIR
 CROPS_DIR = gen.CROPS_DIR
 
-LABELS_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/yolofiles/labels"
+LABELS_DIR = str(REPO_ROOT / "yolofiles" / "labels")
 
-OUT_DIR = "/home/manaralhajyousef/Desktop/stamp-detetction-python/analysis/recovered_backgrounds"
+OUT_DIR = str(REPO_ROOT / "analysis" / "recovered_backgrounds")
 
 MARGIN = 12
 INK_THRESH = 0.15    

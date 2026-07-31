@@ -15,10 +15,11 @@ import os
 import argparse
 import re
 import collections
+from pathlib import Path
 
-
-stamped_dir = "/home/manaralhajyousef/Desktop/stamp-detetction-python/images_with_stamps"
-unstamped_dir = "/home/manaralhajyousef/Desktop/stamp-detetction-python/images_no_stamps"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+stamped_dir = str(REPO_ROOT / "images_with_stamps")
+unstamped_dir = str(REPO_ROOT / "images_no_stamps")
 
 
 def page_stem(file):
