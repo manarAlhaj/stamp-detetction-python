@@ -120,6 +120,7 @@ def run_fold(fold, args):
     model.train(
         data=str(data_yaml),
         epochs=args.epochs,
+        patience=args.patience,
         imgsz=args.imgsz,
         batch=args.batch,
         device=args.device,
@@ -169,6 +170,11 @@ def main():
                          "pass stampdetection/best.pt, it was already trained on "
                          "every depositor and would leak into every fold's val set")
     ap.add_argument("--epochs", type=int, default=100)
+    ap.add_argument("--patience", type=int, default=25,
+                    help="stop a fold early if val metrics don't improve for "
+                         "this many epochs (matches the original stampdetection "
+                         "recipe); Ultralytics' own default is 100, i.e. "
+                         "effectively never for a 100-epoch run")
     ap.add_argument("--imgsz", type=int, default=960)
     ap.add_argument("--batch", type=int, default=-1)
     ap.add_argument("--device", default="0")
