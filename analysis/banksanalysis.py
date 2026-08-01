@@ -27,7 +27,7 @@ def page_stem(file):
     if m:
         return m.group(1)
     else:
-        os.path.splitext(file)[0]
+        return os.path.splitext(file)[0]
 
 def bank(stem):
     return stem.split("_")[0]
