@@ -29,7 +29,7 @@ def find_pairs(images_dir, labels_dir):
     return pairs
 
 
-def assign_folds(groups, k, seed):
+def assign_folds(groups, k, seed): #lptf
    
     import random
     rng = random.Random(seed)
