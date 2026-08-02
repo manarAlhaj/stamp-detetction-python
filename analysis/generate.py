@@ -348,12 +348,6 @@ def degrade_page(img_f32, cfg, rng):
 
 # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# one page's worth of work, factored out so it can run under
-# multiprocessing.Pool - see _init_worker/_render_page below for how the
-# shared read-only inputs (backgrounds/pool/crops) get to each worker.
-# ---------------------------------------------------------------------------
-
 _WORKER_STATE = {}
 
 
